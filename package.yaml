@@ -1,0 +1,49 @@
+name: pomonad
+version: 0.1.0.0
+
+license: MIT
+
+synopsis: pomodoro timer
+author: damianfral
+
+ghc-options:
+  - -fshow-warning-groups
+  - -Werror
+  - -Wall
+  - -Wcompat
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wpartial-fields
+  - -Wredundant-constraints
+  - -fwrite-ide-info
+  - -funbox-strict-fields
+  - -flate-dmd-anal
+  - -fno-omit-interface-pragmas
+
+library:
+  source-dirs:
+    - src
+
+  dependencies:
+    - async
+    - base
+    - brick
+    - generic-lens
+    - relude
+    - text
+    - vty
+    - vty-crossplatform
+
+executables:
+  pomonad:
+    main: Main.hs
+    source-dirs: app/
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - base
+      - pomonad
+      - relude
