@@ -1,5 +1,7 @@
 # pomonad
 
+![screenshot](screenshot.png)
+
 A pomodoro timer in the terminal,
 built with [brick](https://github.com/jtdaugherty/brick).
 
