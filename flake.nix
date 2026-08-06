@@ -36,6 +36,7 @@
         "package.yaml"
         "pomonad.cabal"
         "LICENSE"
+        "notification.wav"
       ];
     };
   in
@@ -43,7 +44,15 @@
       overlays.default = final: prev: rec {
         pomonad = final.haskell.lib.justStaticExecutables (
           final.haskellPackages.pomonad.overrideAttrs (oldAttrs: {
+            nativeBuildInputs = with final;
+              oldAttrs.nativeBuildInputs ++ [makeWrapper];
             configureFlags = oldAttrs.configureFlags ++ ["--ghc-options=-O2"];
+            postInstall =
+              (oldAttrs.postInstall or "")
+              + ''
+                wrapProgram $out/bin/pomonad \
+                  --suffix PATH : ${final.lib.makeBinPath [final.alsa-utils]}
+              '';
           })
         );
 

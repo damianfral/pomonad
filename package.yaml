@@ -29,9 +29,11 @@ library:
     - async
     - base
     - brick
+    - file-embed
     - generic-lens
     - relude
     - text
+    - typed-process
     - vty
     - vty-crossplatform
 
@@ -47,3 +49,6 @@ executables:
       - base
       - pomonad
       - relude
+
+extra-source-files:
+  - notification.wav
