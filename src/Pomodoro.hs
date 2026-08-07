@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -15,24 +17,33 @@ import Relude.Extra.Lens
 
 --------------------------------------------------------------------------------
 
-type Seconds = Int
+newtype Seconds = Seconds {unSeconds :: Int}
+  deriving newtype (Num, Eq, Ord, Read, Show)
+
+newtype Minutes = Minutes Int
+  deriving newtype (Num, Eq, Ord, Read, Show)
 
 data PomodoroConfig = PomodoroConfig
-  { focusDuration :: Seconds,
-    shortBreakDuration :: Seconds,
-    longBreakDuration :: Seconds
+  { focusDuration :: Minutes,
+    shortBreakDuration :: Minutes,
+    longBreakDuration :: Minutes,
+    cyclesForLongBreak :: Int
   }
-  deriving (Generic)
+  deriving (Generic, Eq)
 
 defaultConfig :: PomodoroConfig
-defaultConfig = PomodoroConfig 25 5 10
+defaultConfig = PomodoroConfig 25 5 15 4
+
+minutesToSeconds :: Minutes -> Seconds
+minutesToSeconds (Minutes m) = Seconds $ 60 * m
 
 --------------------------------------------------------------------------------
 
 data Pomodoro = Pomodoro
   { pomodoroPhase :: PomodoroPhase,
     pomodoroState :: PomodoroState,
-    pomodoroCompletedRuns :: Int
+    pomodoroCompletedRuns :: Int,
+    pomodoroConfig :: PomodoroConfig
   }
   deriving (Generic, Eq)
 
@@ -41,28 +52,34 @@ data PomodoroPhase = Focus Seconds | Break Seconds deriving (Generic, Eq, Ord)
 data PomodoroState = Running | Paused deriving (Generic, Eq, Ord)
 
 makePomodoro :: PomodoroConfig -> Pomodoro
-makePomodoro PomodoroConfig {..} = Pomodoro (Focus focusDuration) Paused 0
+makePomodoro config@PomodoroConfig {..} =
+  Pomodoro (Focus $ minutesToSeconds focusDuration) Paused 0 config
 
 startOrPause :: Pomodoro -> Pomodoro
 startOrPause = #pomodoroState %~ toggleState
 
-reset :: PomodoroConfig -> Pomodoro -> Pomodoro
-reset PomodoroConfig {..} =
-  (#pomodoroState .~ Paused) . (#pomodoroPhase .~ Focus focusDuration)
+reset :: Pomodoro -> Pomodoro
+reset p@Pomodoro {pomodoroConfig = PomodoroConfig {..}} =
+  let seconds = minutesToSeconds focusDuration
+   in p & #pomodoroState .~ Paused & #pomodoroPhase .~ Focus seconds
 
-tick :: PomodoroConfig -> Pomodoro -> Pomodoro
-tick _ p@(Pomodoro _ Paused _) = p
-tick PomodoroConfig {..} p@Pomodoro {..} = case pomodoroPhase of
-  Focus 0 ->
-    let longBreak = Break longBreakDuration
-        shortBreak = Break shortBreakDuration
-        isCycleCompleted = (pomodoroCompletedRuns + 1) `mod` 4 == 0
-        newPhase = if isCycleCompleted then longBreak else shortBreak
-     in p & #pomodoroPhase .~ newPhase & #pomodoroCompletedRuns %~ (+ 1)
-  Break 0 -> p {pomodoroPhase = Focus focusDuration}
-  Focus s -> p {pomodoroPhase = Focus $ s - 1}
-  Break s -> p {pomodoroPhase = Break $ s - 1}
+tick :: Pomodoro -> Pomodoro
+tick p@(Pomodoro _ Paused _ _) = p
+tick p@Pomodoro {pomodoroConfig = PomodoroConfig {..}, ..} =
+  case pomodoroPhase of
+    Focus 0 ->
+      let shortBreak = Break $ minutesToSeconds shortBreakDuration
+          longBreak = Break $ minutesToSeconds longBreakDuration
+          isCycleCompleted =
+            (pomodoroCompletedRuns + 1) `mod` cyclesForLongBreak == 0
+          newPhase = if isCycleCompleted then longBreak else shortBreak
+       in p & #pomodoroPhase .~ newPhase & #pomodoroCompletedRuns %~ (+ 1)
+    Break 0 -> p {pomodoroPhase = Focus $ minutesToSeconds focusDuration}
+    Focus s -> p {pomodoroPhase = Focus $ s - 1}
+    Break s -> p {pomodoroPhase = Break $ s - 1}
 
 toggleState :: PomodoroState -> PomodoroState
 toggleState Running = Paused
 toggleState Paused = Running
+
+--------------------------------------------------------------------------------

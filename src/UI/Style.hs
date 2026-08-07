@@ -14,7 +14,9 @@ attributes =
     ( phaseAttrName (Break 0),
       V.defAttr `V.withForeColor` V.brightYellow `V.withStyle` V.bold
     ),
-    (helpAttr, V.defAttr `V.withStyle` V.dim)
+    (helpAttr, V.defAttr `V.withStyle` V.dim),
+    (titleAttr, V.defAttr `V.withStyle` V.bold),
+    (boldAttr, V.defAttr `V.withStyle` V.bold)
   ]
 
 phaseAttrName :: PomodoroPhase -> AttrName
@@ -23,3 +25,9 @@ phaseAttrName (Break _) = attrName "break"
 
 helpAttr :: AttrName
 helpAttr = attrName "help"
+
+titleAttr :: AttrName
+titleAttr = attrName "title"
+
+boldAttr :: AttrName
+boldAttr = attrName "bold"
