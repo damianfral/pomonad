@@ -28,11 +28,10 @@ viewTimer s = hBox $ padAll 1 . hLimit 5 . hCenter . vBox <$> digits
     secondTens = seconds `div` 10
     secondOnes = seconds `mod` 10
 
-viewUI :: Pomodoro -> [Widget ()]
-viewUI (Pomodoro {..}) =
+viewPomodoro :: Pomodoro -> [Widget ()]
+viewPomodoro (Pomodoro {..}) =
   [ center $ vBox $ do
-      hCenter
-        . padAll 1
+      centerAndPad
         <$> [ withAttr phaseAttr $ txt phaseText,
               withAttr phaseAttr $ viewTimer secondsRemaining,
               txt $ "Pomodoros completed: " <> show pomodoroCompletedRuns,
@@ -41,6 +40,7 @@ viewUI (Pomodoro {..}) =
             ]
   ]
   where
+    centerAndPad = hCenter . padAll 1
     phaseAttr = phaseAttrName pomodoroPhase
     (phaseText, secondsRemaining) = case pomodoroPhase of
       Focus s -> ("FOCUS", s)

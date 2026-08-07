@@ -16,14 +16,14 @@ import Pomodoro
 import Relude
 import System.Process.Typed
 import UI.Style (attributes)
-import UI.View (viewUI)
+import UI.View
 
 data AppEvent = Tick deriving (Eq, Show)
 
 uiApp :: App Pomodoro AppEvent ()
 uiApp =
   App
-    { appDraw = viewUI,
+    { appDraw = viewPomodoro,
       appChooseCursor = neverShowCursor,
       appHandleEvent = handleEvent,
       appStartEvent = pure (),
@@ -36,8 +36,10 @@ runUI = do
   vty <- mkVty V.defaultConfig
   bchan <- newBChan 1
   ticker <- async $ tickerLoop bchan
-  void $ customMain vty (mkVty V.defaultConfig) (Just bchan) uiApp initialState
+  let initialPomodoro = makePomodoro defaultConfig
+  void $ customMain vty (mkVty V.defaultConfig) (Just bchan) uiApp initialPomodoro
   cancel ticker
+  exitSuccess
 
 tickerLoop :: BChan AppEvent -> IO ()
 tickerLoop bchan = forever $ do
@@ -46,12 +48,12 @@ tickerLoop bchan = forever $ do
 
 handleEvent :: BrickEvent () AppEvent -> EventM () Pomodoro ()
 handleEvent (VtyEvent (V.EvKey (V.KChar ' ') [])) = modify startOrPause
-handleEvent (VtyEvent (V.EvKey (V.KChar 'r') [])) = modify reset
+handleEvent (VtyEvent (V.EvKey (V.KChar 'r') [])) = modify $ reset defaultConfig
 handleEvent (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt
 handleEvent (VtyEvent (V.EvKey V.KEsc [])) = halt
 handleEvent (VtyEvent _) = pure ()
 handleEvent (AppEvent Tick) = do
-  modify tick
+  modify $ tick defaultConfig
   Pomodoro {..} <- get
   liftIO $ case pomodoroPhase of
     Focus 0 -> playNotificationSound
