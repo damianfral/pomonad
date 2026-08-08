@@ -31,51 +31,53 @@ viewTimer s = hBox $ padAll 1 . hLimit 5 . hCenter . vBox <$> digits
     secondTens = seconds `div` 10
     secondOnes = seconds `mod` 10
 
-viewPomodoro :: Pomodoro -> Widget a
-viewPomodoro (Pomodoro {..}) = center $ vBox $ do
-  hCenter
-    <$> [ withAttr (if pomodoroState == Paused then titleAttr else phaseAttr)
-            $ txt phaseText,
-          padAll 1 $ vBox $ do
-            hCenter
-              <$> [ withAttr (if pomodoroState == Paused then titleAttr else phaseAttr) $ viewTimer secondsRemaining,
-                    txt $ "Pomodoros completed: " <> show pomodoroCompletedRuns,
-                    txt " "
-                  ],
-          withAttr helpAttr $ hBox $ padLeftRight 2 . txt <$> keys
-        ]
+viewScreen :: Widget n -> Widget n -> [Text] -> Widget n
+viewScreen header body keys =
+  center $ vBox $ hCenter <$> [header, body, help]
   where
-    phaseAttr = phaseAttrName pomodoroPhase
-    (phaseText, secondsRemaining) = case pomodoroPhase of
-      Focus s -> ("FOCUS", s)
-      Break s -> ("BREAK", s)
+    help = withAttr helpAttr $ hBox $ padLeftRight 2 . txt <$> keys
+
+viewPomodoro :: Pomodoro -> Widget a
+viewPomodoro (Pomodoro {..}) = viewScreen header body keys
+  where
+    attr = if pomodoroState == Paused then titleAttr else phaseAttrName pomodoroPhase
+    header = withAttr attr $ txt phaseText
+    body =
+      padAll 1
+        $ vBox
+        $ hCenter
+        <$> [ withAttr attr $ viewTimer secondsRemaining,
+              txt $ "Pomodoros completed: " <> show pomodoroCompletedRuns,
+              txt " "
+            ]
     keys = [keySpace, keyR, keyS, keyQ]
     keySpace = "[Space] " <> spaceActionText
     keyR = "[R] reset"
     keyS = "[S] settings"
     keyQ = "[Q] quit"
     spaceActionText = if pomodoroState == Paused then "start" else "pause"
+    (phaseText, secondsRemaining) = case pomodoroPhase of
+      Focus s -> ("FOCUS", s)
+      Break s -> ("BREAK", s)
 
-viewPomodoroConfig ::
-  Form PomodoroConfig e ConfigFormField -> Widget ConfigFormField
-viewPomodoroConfig form = center $ vBox $ do
-  hCenter
-    <$> [ withAttr titleAttr $ txt "POMODORO SETTINGS",
-          padTop (Pad 2) $ padBottom (Pad 1) $ hBox [renderForm form],
-          withAttr helpAttr $ hBox $ padLeftRight 2 . txt <$> keys
-        ]
+viewPomodoroSettings :: SettingsForm e -> Widget SettingsFormField
+viewPomodoroSettings form = viewScreen header body keys
   where
+    header = withAttr titleAttr $ txt "POMODORO SETTINGS"
+    body = padTop (Pad 2) $ padBottom (Pad 1) $ hBox [renderForm form]
     keys = ["[Tab] next field", "[Enter] save"]
 
-data ConfigFormField
+data SettingsFormField
   = FocusDurationField
   | ShortBreakDurationField
   | LongBreakDurationField
   | CyclesForLongBreakField
   deriving (Eq, Ord, Show)
 
-makePomodoroConfigForm :: PomodoroConfig -> Form PomodoroConfig e ConfigFormField
-makePomodoroConfigForm = newForm fields
+type SettingsForm e = Form PomodoroSettings e SettingsFormField
+
+makePomodoroSettingsForm :: PomodoroSettings -> SettingsForm e
+makePomodoroSettingsForm = newForm fields
   where
     label s w = padBottom (Pad 1) $ vLimit 1 $ hLimit 32 $ do
       hBox [hLimit 24 $ fill ' ' <+> str (s <> ": "), hLimit 8 w]

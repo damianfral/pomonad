@@ -9,9 +9,10 @@ module UI (runUI) where
 import Brick
 import qualified Brick.AttrMap as A
 import Brick.BChan (BChan, newBChan, writeBChan)
-import Brick.Forms (Form, allFieldsValid, formState, handleFormEvent)
+import Brick.Forms (allFieldsValid, formState, handleFormEvent)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel)
+import Control.Exception (finally)
 import qualified Graphics.Vty as V
 import Graphics.Vty.CrossPlatform (mkVty)
 import Pomodoro
@@ -21,18 +22,18 @@ import Sound (playNotificationSound)
 import UI.Style (attributes)
 import UI.View
 
-data View = Config | Ready deriving (Eq)
+data View = Settings | Ready deriving (Eq)
 
 data AppState = AppState
   { currentView :: View,
     pomodoro :: Pomodoro,
-    settingsForm :: Form PomodoroConfig AppEvent ConfigFormField
+    settingsForm :: SettingsForm AppEvent
   }
   deriving (Generic)
 
 data AppEvent = Tick deriving (Eq, Show)
 
-uiApp :: App AppState AppEvent ConfigFormField
+uiApp :: App AppState AppEvent SettingsFormField
 uiApp =
   App
     { appDraw = viewUI,
@@ -51,23 +52,23 @@ runUI = do
   let appState =
         AppState
           Ready
-          (makePomodoro defaultConfig)
-          (makePomodoroConfigForm defaultConfig)
-  void $ customMain vty makeVty (Just bchan) uiApp appState
-  cancel ticker
-  exitSuccess
+          (makePomodoro defaultSettings)
+          (makePomodoroSettingsForm defaultSettings)
+  void
+    $ customMain vty makeVty (Just bchan) uiApp appState
+    `finally` cancel ticker
 
 tickerLoop :: BChan AppEvent -> IO ()
 tickerLoop bchan = forever $ do
   threadDelay 1000000
   writeBChan bchan Tick
 
-viewUI :: AppState -> [Widget ConfigFormField]
-viewUI (AppState Config _ form) = [viewPomodoroConfig form]
+viewUI :: AppState -> [Widget SettingsFormField]
+viewUI (AppState Settings _ form) = [viewPomodoroSettings form]
 viewUI (AppState Ready pomodoro _) = [viewPomodoro pomodoro]
 
 handleEvent ::
-  BrickEvent ConfigFormField AppEvent -> EventM ConfigFormField AppState ()
+  BrickEvent SettingsFormField AppEvent -> EventM SettingsFormField AppState ()
 handleEvent (VtyEvent (V.EvResize {})) = pure ()
 handleEvent e@(VtyEvent (V.EvKey key [])) = case key of
   V.KChar ' ' -> zoom #pomodoro $ modify startOrPause
@@ -76,29 +77,26 @@ handleEvent e@(VtyEvent (V.EvKey key [])) = case key of
   V.KChar 's' -> do
     AppState v Pomodoro {..} _ <- get
     when (v == Ready) $ do
-      modify $ #settingsForm .~ makePomodoroConfigForm pomodoroConfig
-      modify $ #currentView .~ Config
+      modify $ #settingsForm .~ makePomodoroSettingsForm pomodoroSettings
+      modify $ #currentView .~ Settings
   V.KEnter -> do
     AppState v Pomodoro {..} form <- get
-    when (v == Config && allFieldsValid form) $ do
-      let newConfig = formState form
-      modify $ #pomodoro . #pomodoroConfig .~ newConfig
+    when (v == Settings && allFieldsValid form) $ do
+      let newSettings = formState form
+      modify $ #pomodoro . #pomodoroSettings .~ newSettings
       modify $ #currentView .~ Ready
       when (pomodoroState == Paused) $ do
-        modify $ #pomodoro .~ makePomodoro newConfig
+        modify $ #pomodoro .~ makePomodoro newSettings
   V.KEsc -> halt
   _ -> forwardToForm e
 handleEvent (AppEvent Tick) = do
   modify $ #pomodoro %~ tick
   phase <- gets $ view $ #pomodoro . #pomodoroPhase
-  liftIO $ case phase of
-    Focus 0 -> playNotificationSound
-    Break 0 -> playNotificationSound
-    _ -> pure ()
+  liftIO $ when (phase `elem` [Focus 0, Break 0]) playNotificationSound
 handleEvent e@(MouseDown {}) = forwardToForm e
 handleEvent e@(MouseUp {}) = forwardToForm e
 handleEvent _ = pure ()
 
 forwardToForm ::
-  BrickEvent ConfigFormField AppEvent -> EventM ConfigFormField AppState ()
+  BrickEvent SettingsFormField AppEvent -> EventM SettingsFormField AppState ()
 forwardToForm e = zoom #settingsForm $ handleFormEvent e
