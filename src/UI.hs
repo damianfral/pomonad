@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -13,6 +14,7 @@ import Brick.Forms (allFieldsValid, formState, handleFormEvent)
 import Control.Concurrent (threadDelay)
 import Control.Concurrent.Async (async, cancel)
 import Control.Exception (finally)
+import Data.Generics.Product
 import qualified Graphics.Vty as V
 import Graphics.Vty.CrossPlatform (mkVty)
 import Pomodoro
@@ -72,7 +74,12 @@ handleEvent ::
 handleEvent (VtyEvent (V.EvResize {})) = pure ()
 handleEvent e@(VtyEvent (V.EvKey key [])) = case key of
   V.KChar ' ' -> zoom #pomodoro $ modify startOrPause
-  V.KChar 'r' -> zoom #pomodoro $ modify reset
+  V.KChar 'r' -> do
+    gets getTyped >>= \case
+      Settings -> do
+        modify $ #pomodoro . #pomodoroSettings .~ defaultSettings
+        modify $ #settingsForm .~ makePomodoroSettingsForm defaultSettings
+      Ready -> zoom #pomodoro $ modify reset
   V.KChar 'q' -> halt
   V.KChar 's' -> do
     AppState v Pomodoro {..} _ <- get

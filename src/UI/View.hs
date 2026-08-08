@@ -65,7 +65,7 @@ viewPomodoroSettings form = viewScreen header body keys
   where
     header = withAttr titleAttr $ txt "POMODORO SETTINGS"
     body = padTop (Pad 2) $ padBottom (Pad 1) $ hBox [renderForm form]
-    keys = ["[Tab] next field", "[Enter] save"]
+    keys = ["[Tab] next field", "[R] Reset to default", "[Enter] save"]
 
 data SettingsFormField
   = FocusDurationField
