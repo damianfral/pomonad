@@ -63,8 +63,7 @@
               (old.overrides or (_: _: {}))
               (self: super: {
                 brick = self.callCabal2nix "brick" inputs.brick {};
-                pomonad =
-                  self.callCabal2nix "pomonad" src {};
+                pomonad = self.callCabal2nix "pomonad" src {};
               });
           });
       };
