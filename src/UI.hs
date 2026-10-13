@@ -51,14 +51,11 @@ runUI = do
   vty <- makeVty
   bchan <- newBChan 1
   ticker <- async $ tickerLoop bchan
-  let appState =
-        AppState
-          Ready
-          (makePomodoro defaultSettings)
-          (makePomodoroSettingsForm defaultSettings)
-  void
-    $ customMain vty makeVty (Just bchan) uiApp appState
-    `finally` cancel ticker
+  let pomodoro = makePomodoro defaultSettings
+  let settingsForm = makePomodoroSettingsForm defaultSettings
+  let appState = AppState Ready pomodoro settingsForm
+  let runAppIO = customMain vty makeVty (Just bchan) uiApp appState
+  void $ runAppIO `finally` cancel ticker
 
 tickerLoop :: BChan AppEvent -> IO ()
 tickerLoop bchan = forever $ do
