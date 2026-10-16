@@ -40,10 +40,21 @@
         "notification.wav"
       ];
     };
+    ghc = "ghc9124";
   in
     {
-      overlays.default = final: prev: rec {
-        pomonad = final.haskell.lib.justStaticExecutables (
+      overlays.default = final: prev: {
+        haskellPackages = prev.haskellPackages.override {
+          overrides =
+            final.lib.composeExtensions (
+              prev.haskellPackages.overrides or (_: _: {})
+            ) (self: super: {
+              brick = self.callCabal2nix "brick" inputs.brick {};
+              pomonad = self.callCabal2nix "pomonad" src {};
+            });
+        };
+
+        pomonad = final.haskell.lib.compose.justStaticExecutables (
           final.haskellPackages.pomonad.overrideAttrs (oldAttrs: {
             nativeBuildInputs = with final;
               oldAttrs.nativeBuildInputs ++ [makeWrapper];
@@ -56,17 +67,6 @@
               '';
           })
         );
-
-        haskellPackages = prev.haskell.packages.ghc912.override (old:
-          with final.haskell.lib; {
-            overrides =
-              final.lib.composeExtensions
-              (old.overrides or (_: _: {}))
-              (self: super: {
-                brick = self.callCabal2nix "brick" inputs.brick {};
-                pomonad = self.callCabal2nix "pomonad" src {};
-              });
-          });
       };
     }
     // flake-utils.lib.eachDefaultSystem (
