@@ -33,6 +33,7 @@
       include = [
         "src/"
         "app/"
+        "assets/"
         "package.yaml"
         "pomonad.cabal"
         "LICENSE"

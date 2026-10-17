@@ -6,6 +6,8 @@ license: MIT
 synopsis: pomodoro timer
 author: damianfral
 
+extra-source-files:
+  - assets/*.txt
 ghc-options:
   - -fshow-warning-groups
   - -Werror
